@@ -1,6 +1,6 @@
 import { auth, signIn } from "@/auth"
 import { redirect } from "next/navigation"
-import { Shield, KeyRound, ShieldCheck, LineChart, Lock } from "lucide-react"
+import { Shield, KeyRound, ShieldCheck, Lock } from "lucide-react"
 
 export default async function Home() {
   const session = await auth()
@@ -105,13 +105,12 @@ HTTP 200
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: "1.2rem",
-            maxWidth: "1000px",
+            maxWidth: "800px",
             margin: "0 auto",
           }}
         >
           <FeatureCard icon={KeyRound} title="Generate API Keys" desc="Create secure API keys in seconds and start using your APIs right away." />
           <FeatureCard icon={ShieldCheck} title="Set Rate Limits" desc="Define requests per minute, hour, day or month based on your needs." />
-          <FeatureCard icon={LineChart} title="Per-user tracking" desc="Optionally track limits separately for each of your end-users." />
           <FeatureCard icon={Lock} title="Secure & Reliable" desc="Keep your APIs safe with simple and effective rate limiting." />
         </div>
       </div>
