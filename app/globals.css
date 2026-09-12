@@ -1,0 +1,41 @@
+:root {
+  --bg: #FFFFFF;
+  --surface: #E1F9F4;
+  --border: #C7EDE4;
+  --text: #0B2B2B;
+  --text-dim: #5A7A78;
+  --accent: #018081;
+  --accent-text: #FFFFFF;
+  --green: #22C55E;
+  --amber: #F59E0B;
+  --red: #EF4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mono {
+  font-family: "SF Mono", "JetBrains Mono", Consolas, monospace;
+}
+
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.no-spinner {
+  -moz-appearance: textfield;
+}
