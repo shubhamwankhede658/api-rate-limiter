@@ -23,8 +23,8 @@ export default function DashboardPage() {
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [label, setLabel] = useState("")
-  const [limit, setLimit] = useState(100)
-  const [windowValue, setWindowValue] = useState(1)
+  const [limit, setLimit] = useState("100")
+  const [windowValue, setWindowValue] = useState("1")
   const [windowUnit, setWindowUnit] = useState<keyof typeof UNIT_SECONDS>("minutes")
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -41,12 +41,21 @@ export default function DashboardPage() {
     fetchKeys()
   }, [])
 
+  // Keeps number inputs clean — turns "050" into "50", and blocks
+  // anything that isn't a digit, so the box always shows exactly
+  // what the stored value is (no leftover leading zeros).
+  const sanitizeNumberInput = (raw: string) => {
+    const digitsOnly = raw.replace(/\D/g, "")
+    if (digitsOnly === "") return ""
+    return String(Number(digitsOnly))
+  }
+
   const createKey = async () => {
-    const windowSec = windowValue * UNIT_SECONDS[windowUnit]
+    const windowSec = (Number(windowValue) || 1) * UNIT_SECONDS[windowUnit]
     await fetch("/api/keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: label || "Untitled key", limit, windowSec }),
+      body: JSON.stringify({ label: label || "Untitled key", limit: Number(limit) || 1, windowSec }),
     })
     setLabel("")
     fetchKeys()
@@ -119,7 +128,7 @@ export default function DashboardPage() {
               <input
                 type="number"
                 value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
+                onChange={(e) => setLimit(sanitizeNumberInput(e.target.value))}
                 style={inputStyle}
                 className="no-spinner"
               />
@@ -131,7 +140,7 @@ export default function DashboardPage() {
                 type="number"
                 min={1}
                 value={windowValue}
-                onChange={(e) => setWindowValue(Number(e.target.value))}
+                onChange={(e) => setWindowValue(sanitizeNumberInput(e.target.value))}
                 style={inputStyle}
                 className="no-spinner"
               />
