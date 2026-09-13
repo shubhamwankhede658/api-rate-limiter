@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
+import { getAuthenticatedUser } from "@/lib/auth-helpers"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
 
 export async function GET() {
-  const session = await auth()
-
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Not logged in" }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  })
-
+  const user = await getAuthenticatedUser()
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 })
+    return NextResponse.json({ error: "Not logged in" }, { status: 401 })
   }
 
   const keys = await prisma.apiKey.findMany({
@@ -28,18 +19,9 @@ export async function GET() {
 
 // POST → create a new API key for the logged-in user
 export async function POST(req: Request) {
-  const session = await auth()
-
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Not logged in" }, { status: 401 })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  })
-
+  const user = await getAuthenticatedUser()
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 })
+    return NextResponse.json({ error: "Not logged in" }, { status: 401 })
   }
 
   const body = await req.json().catch(() => ({}))

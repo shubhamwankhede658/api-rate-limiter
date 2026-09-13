@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Sidebar from "../components/Sidebar"
+import { useSessionGuard } from "../hooks/useSessionGuard"
 
 type ApiKey = {
   id: string
@@ -27,6 +28,8 @@ export default function DashboardPage() {
   const [windowUnit, setWindowUnit] = useState<keyof typeof UNIT_SECONDS>("minutes")
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  useSessionGuard()
+
   const fetchKeys = async () => {
     const res = await fetch("/api/keys")
     const data = await res.json()
@@ -36,23 +39,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchKeys()
-
-    const checkSession = async () => {
-      const res = await fetch("/api/auth/session")
-      const data = await res.json()
-      if (!data?.user) {
-        window.location.replace("/")
-      }
-    }
-
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        checkSession()
-      }
-    }
-
-    window.addEventListener("pageshow", handlePageShow)
-    return () => window.removeEventListener("pageshow", handlePageShow)
   }, [])
 
   const createKey = async () => {
@@ -80,10 +66,14 @@ export default function DashboardPage() {
   }
 
   const formatWindow = (sec: number) => {
-    if (sec % 2592000 === 0) return `${sec / 2592000} month${sec / 2592000 > 1 ? "s" : ""}`
-    if (sec % 86400 === 0) return `${sec / 86400} day${sec / 86400 > 1 ? "s" : ""}`
-    if (sec % 3600 === 0) return `${sec / 3600} hour${sec / 3600 > 1 ? "s" : ""}`
-    return `${sec / 60} minute${sec / 60 > 1 ? "s" : ""}`
+    const units = Object.entries(UNIT_SECONDS).reverse() // months → hours → days → minutes
+    for (const [name, unitSec] of units) {
+      if (sec % unitSec === 0) {
+        const value = sec / unitSec
+        return `${value} ${name.slice(0, -1)}${value > 1 ? "s" : ""}` // "1 month", "2 months"
+      }
+    }
+    return `${sec} seconds`
   }
 
   return (

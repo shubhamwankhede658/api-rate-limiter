@@ -1,28 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
 import Link from "next/link"
 import Sidebar from "../components/Sidebar"
+import { useSessionGuard } from "../hooks/useSessionGuard"
 
 export default function DocsPage() {
-  useEffect(() => {
-    const checkSession = async () => {
-      const res = await fetch("/api/auth/session")
-      const data = await res.json()
-      if (!data?.user) {
-        window.location.replace("/")
-      }
-    }
-
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        checkSession()
-      }
-    }
-
-    window.addEventListener("pageshow", handlePageShow)
-    return () => window.removeEventListener("pageshow", handlePageShow)
-  }, [])
+  useSessionGuard()
 
   return (
     <div style={{ display: "flex", width: "100%", height: "100vh" }}>
