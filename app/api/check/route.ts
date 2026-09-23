@@ -1,44 +1,51 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-// Tracks IPs that repeatedly send INVALID or MISSING API keys.
-// Valid, authenticated traffic never touches this — so a legitimate
-// high-volume client (like an app with thousands of users, all sharing
-// one server IP) is never affected, no matter how many requests it sends.
-const ipFailedAttempts = new Map<
-  string,
-  { count: number; windowStart: number; blockedUntil: number }
->()
-
 const FAILED_ATTEMPT_LIMIT = 20 // max bad attempts allowed per minute
 const BLOCK_DURATION_MS = 30 * 60_000 // once over the limit, blocked for 30 minutes
+const WINDOW_MS = 60_000 // 1 minute
 
-function isIpBlocked(ip: string): boolean {
-  const entry = ipFailedAttempts.get(ip)
-  if (!entry) return false
-  return Date.now() < entry.blockedUntil
+// Checks the IpAttempt table — stored in Postgres, not memory, so every
+// Vercel server instance sees the same data. Valid, authenticated traffic
+// never touches this table at all.
+async function isIpBlocked(ip: string): Promise<boolean> {
+  const record = await prisma.ipAttempt.findUnique({ where: { ip } })
+  if (!record?.blockedUntil) return false
+  return record.blockedUntil > new Date()
 }
 
-function recordFailedAttempt(ip: string) {
-  const now = Date.now()
-  const entry = ipFailedAttempts.get(ip)
+async function recordFailedAttempt(ip: string) {
+  const now = new Date()
+  const existing = await prisma.ipAttempt.findUnique({ where: { ip } })
 
-  if (!entry || now > entry.windowStart + 60_000) {
-    ipFailedAttempts.set(ip, { count: 1, windowStart: now, blockedUntil: 0 })
+  const windowExpired =
+    !existing || now.getTime() - existing.windowStart.getTime() > WINDOW_MS
+
+  if (windowExpired) {
+    await prisma.ipAttempt.upsert({
+      where: { ip },
+      create: { ip, count: 1, windowStart: now, blockedUntil: null },
+      update: { count: 1, windowStart: now, blockedUntil: null },
+    })
     return
   }
 
-  entry.count++
-  if (entry.count > FAILED_ATTEMPT_LIMIT) {
-    entry.blockedUntil = now + BLOCK_DURATION_MS
-  }
+  const newCount = existing.count + 1
+  const blockedUntil =
+    newCount > FAILED_ATTEMPT_LIMIT
+      ? new Date(now.getTime() + BLOCK_DURATION_MS)
+      : existing.blockedUntil
+
+  await prisma.ipAttempt.update({
+    where: { ip },
+    data: { count: newCount, blockedUntil },
+  })
 }
 
 export async function GET(req: Request) {
   const ip = req.headers.get("x-forwarded-for") || "unknown"
 
-  // Cheap, in-memory check — runs before touching the database at all.
-  if (isIpBlocked(ip)) {
+  if (await isIpBlocked(ip)) {
     return NextResponse.json(
       { error: "Too many invalid attempts from this IP. Try again later." },
       { status: 429 }
@@ -49,7 +56,7 @@ export async function GET(req: Request) {
   const endUserId = req.headers.get("x-user-id") || "global"
 
   if (!apiKey) {
-    recordFailedAttempt(ip)
+    await recordFailedAttempt(ip)
     return NextResponse.json(
       { error: "Missing API key. Send it in the 'x-api-key' header." },
       { status: 401 }
@@ -61,15 +68,12 @@ export async function GET(req: Request) {
   })
 
   if (!keyRecord) {
-    recordFailedAttempt(ip)
+    await recordFailedAttempt(ip)
     return NextResponse.json({ error: "Invalid API key." }, { status: 401 })
   }
 
-  // Valid key confirmed — this traffic is legitimate. We deliberately do
-  // NOT touch ipFailedAttempts here, so a busy client sending thousands of
-  // valid requests per minute (e.g. a dating app's backend, on one server
-  // IP, serving many end users) is never penalized by this system at all.
-  // Its actual limit is enforced below, per key and per end-user.
+  // Valid key confirmed — this traffic is legitimate, and IpAttempt is
+  // never touched here, so high-volume valid traffic is unaffected.
 
   const { id: apiKeyId, limit, windowSec } = keyRecord
 

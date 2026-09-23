@@ -76,3 +76,10 @@ model ApiUsage {
 
   @@unique([apiKeyId, endUserId, windowStart])
 }
+
+model IpAttempt {
+  ip           String    @id
+  count        Int       @default(0)
+  windowStart  DateTime
+  blockedUntil DateTime?
+}
