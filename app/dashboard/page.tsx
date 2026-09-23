@@ -116,7 +116,7 @@ export default function DashboardPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flex: "2 1 200px" }}>
               <label style={labelStyle}>Label</label>
               <input
-                placeholder="e.g. Weather App"
+                placeholder="name your api"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 style={inputStyle}
