@@ -82,6 +82,6 @@ model IpAttempt {
   count           Int       @default(0)
   windowStart     DateTime
   longCount       Int       @default(0)
-  longWindowStart DateTime
+  longWindowStart DateTime  @default(now())
   blockedUntil    DateTime?
 }
