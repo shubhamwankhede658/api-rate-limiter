@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-const FAILED_ATTEMPT_LIMIT = 20 // max bad attempts allowed per minute
-const BLOCK_DURATION_MS = 30 * 60_000 // once over the limit, blocked for 30 minutes
-const WINDOW_MS = 60_000 // 1 minute
+const SHORT_LIMIT = 20 // max bad attempts allowed in 1 minute
+const SHORT_WINDOW_MS = 60_000 // 1 minute
+
+const LONG_LIMIT = 100 // max bad attempts allowed in 1 hour, even if spread out
+const LONG_WINDOW_MS = 60 * 60_000 // 1 hour
+
+const BLOCK_DURATION_MS = 30 * 60_000 // once blocked, stay blocked for 30 minutes
 
 // Checks the IpAttempt table — stored in Postgres, not memory, so every
 // Vercel server instance sees the same data. Valid, authenticated traffic
@@ -18,27 +22,41 @@ async function recordFailedAttempt(ip: string) {
   const now = new Date()
   const existing = await prisma.ipAttempt.findUnique({ where: { ip } })
 
-  const windowExpired =
-    !existing || now.getTime() - existing.windowStart.getTime() > WINDOW_MS
+  // Short window: catches a fast burst of bad attempts.
+  const shortExpired =
+    !existing || now.getTime() - existing.windowStart.getTime() > SHORT_WINDOW_MS
+  const shortCount = shortExpired ? 1 : existing.count + 1
+  const windowStart = shortExpired ? now : existing.windowStart
 
-  if (windowExpired) {
-    await prisma.ipAttempt.upsert({
-      where: { ip },
-      create: { ip, count: 1, windowStart: now, blockedUntil: null },
-      update: { count: 1, windowStart: now, blockedUntil: null },
-    })
-    return
-  }
+  // Long window: catches someone spamming slowly, staying under the
+  // short-window limit every minute, but still clearly abusing the endpoint.
+  const longExpired =
+    !existing || now.getTime() - existing.longWindowStart.getTime() > LONG_WINDOW_MS
+  const longCount = longExpired ? 1 : existing.longCount + 1
+  const longWindowStart = longExpired ? now : existing.longWindowStart
 
-  const newCount = existing.count + 1
-  const blockedUntil =
-    newCount > FAILED_ATTEMPT_LIMIT
-      ? new Date(now.getTime() + BLOCK_DURATION_MS)
-      : existing.blockedUntil
+  const shouldBlock = shortCount > SHORT_LIMIT || longCount > LONG_LIMIT
+  const blockedUntil = shouldBlock
+    ? new Date(now.getTime() + BLOCK_DURATION_MS)
+    : existing?.blockedUntil ?? null
 
-  await prisma.ipAttempt.update({
+  await prisma.ipAttempt.upsert({
     where: { ip },
-    data: { count: newCount, blockedUntil },
+    create: {
+      ip,
+      count: shortCount,
+      windowStart,
+      longCount,
+      longWindowStart,
+      blockedUntil,
+    },
+    update: {
+      count: shortCount,
+      windowStart,
+      longCount,
+      longWindowStart,
+      blockedUntil,
+    },
   })
 }
 

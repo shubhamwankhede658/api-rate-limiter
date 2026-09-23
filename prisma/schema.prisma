@@ -78,8 +78,10 @@ model ApiUsage {
 }
 
 model IpAttempt {
-  ip           String    @id
-  count        Int       @default(0)
-  windowStart  DateTime
-  blockedUntil DateTime?
+  ip              String    @id
+  count           Int       @default(0)
+  windowStart     DateTime
+  longCount       Int       @default(0)
+  longWindowStart DateTime
+  blockedUntil    DateTime?
 }
