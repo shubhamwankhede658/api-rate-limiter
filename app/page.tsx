@@ -78,14 +78,14 @@ export default async function Home() {
               <span style={{ color: "var(--green)" }}>Allowed</span>
             </div>
             <pre className="mono" style={{ fontSize: "0.8rem", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>
-{`GET /api/check
-x-api-key: sk_9ebc3addb04a39b0c9e521e42...
+                {`GET /api/check
+                x-api-key: sk_9ebc3addb04a39b0c9e521e42...
 
-HTTP 200
-{
-  "allowed": true,
-  "remaining": 87
-}`}
+                HTTP 200
+                {
+                  "allowed": true,
+                  "remaining": 87
+                }`}
             </pre>
           </div>
         </div>

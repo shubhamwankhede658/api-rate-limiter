@@ -52,11 +52,18 @@ export default function DashboardPage() {
 
   const createKey = async () => {
     const windowSec = (Number(windowValue) || 1) * UNIT_SECONDS[windowUnit]
-    await fetch("/api/keys", {
+    const res = await fetch("/api/keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: label || "Untitled key", limit: Number(limit) || 1, windowSec }),
     })
+
+    if (!res.ok) {
+      const data = await res.json()
+      alert(data.error || "Something went wrong")
+      return
+    }
+
     setLabel("")
     fetchKeys()
   }
@@ -64,7 +71,15 @@ export default function DashboardPage() {
   const deleteKey = async (id: string, keyLabel: string | null) => {
     const confirmed = window.confirm(`Delete "${keyLabel}"? This cannot be undone.`)
     if (!confirmed) return
-    await fetch(`/api/keys/${id}`, { method: "DELETE" })
+
+    const res = await fetch(`/api/keys/${id}`, { method: "DELETE" })
+
+    if (!res.ok) {
+      const data = await res.json()
+      alert(data.error || "Something went wrong")
+      return
+    }
+
     fetchKeys()
   }
 
@@ -114,7 +129,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flex: "2 1 200px" }}>
-              <label style={labelStyle}>Label</label>
+              <label style={labelStyle}>Api name</label>
               <input
                 placeholder="name your api"
                 value={label}
